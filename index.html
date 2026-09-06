@@ -30,6 +30,7 @@
         #status { margin-top: 20px; font-weight: bold; white-space: pre-wrap; font-size: 16px; padding: 12px; background: #e9ecef; border-radius: 6px; }
         .success-box { color: #155724; border: 2px solid #28a745; padding: 15px; margin-top: 15px; background-color: #d4edda; border-radius: 6px; }
         .fail-text { color: #dc3545; }
+        .warning-box { color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 12px; border-radius: 6px; margin-top: 5px; font-size: 14px; display: none; line-height: 1.4; }
         pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 14px; border: 1px solid #e9ecef; }
     </style>
 </head>
@@ -43,6 +44,7 @@
         <input type="text" id="targetUrl" placeholder="請在此貼上完整的 Link Lock 加密網址...">
         <button id="checkUrlBtn" class="blue" onclick="processManualUrl()">確認並解析網址</button>
         <div id="urlCheckStatus" style="font-size: 15px; font-weight: bold; color: #dc3545; margin-top: 5px;">⚠️ 請先貼上網址並點擊上方「確認並解析網址」按鈕</div>
+        <div id="smartWarning" class="warning-box"></div>
     </div>
 
     <div class="card">
@@ -164,19 +166,47 @@
             } catch(e) { return null; }
         }
 
-        // 終極防護校正點：確保 100% 精準切割 # 後方的 Base64 字串，並排除任何陣列轉型錯誤
         function processManualUrl() {
             const urlInput = document.getElementById("targetUrl").value.trim();
             const statusLabel = document.getElementById("urlCheckStatus");
-            if (!urlInput || !urlInput.includes('#')) {
-                statusLabel.innerText = "❌ 請輸入包含「#」後方加密參數的完整網址！";
+            const warnBox = document.getElementById("smartWarning");
+            
+            warnBox.style.display = "none";
+            warnBox.innerHTML = "";
+
+            if (!urlInput) {
+                statusLabel.innerText = "❌ 請先輸入網址，欄位不能為空！";
                 statusLabel.style.color = "red";
                 currentCryptoData = null;
                 return;
             }
+
+            if (urlInput.includes("://google.com") || urlInput.includes("://live.com") || urlInput.includes("icloud.com")) {
+                statusLabel.innerText = "🛑 智慧系統阻斷：檢測到大型雲端硬碟網址";
+                statusLabel.style.color = "red";
+                warnBox.innerHTML = "<strong>⚠️ 安全警告：</strong>此網址屬於【伺服器端驗證】架構。這類網站有嚴格的連線防禦機制（如輸入錯誤 3 次直接封鎖 IP、跳出圖片驗證碼）。本工具【袋鼠KEY2.0】無法對其進行破解，請勿強制空轉以免浪費您的電腦算力。";
+                warnBox.style.display = "block";
+                currentCryptoData = null;
+                return;
+            }
+
+            if (urlInput.includes("/login") || urlInput.includes("/signin") || urlInput.includes("/auth")) {
+                statusLabel.innerText = "⚠️ 智慧系統警告：偵測到常規登入頁面";
+                statusLabel.style.color = "orange";
+                warnBox.innerHTML = "<strong>⚠️ 偵測提示：</strong>這似乎是一個常規的會員登入頁面。這類網站的密碼驗證發生在遠端機房，本工具無法直接為其填寫或破解，強制執行將毫無效果。";
+                warnBox.style.display = "block";
+            }
+
+            if (!urlInput.includes('#')) {
+                statusLabel.innerText = "❌ 解析失敗！網址中缺少關鍵的「#」加密錨點。";
+                statusLabel.style.color = "red";
+                currentCryptoData = null;
+                return;
+            }
+
             try {
                 let parts = urlInput.split('#');
-                let base64String = parts[1]; // 修正：精準提取陣列中的第二個元素（即密文網址字串）
+                let base64String = parts[1];
                 
                 if (base64String.includes('?')) {
                     base64String = base64String.split('?')[0];
@@ -193,11 +223,13 @@
                 if (!ciphertextB64 || !saltB64 || !ivB64) { throw new Error(); }
 
                 currentCryptoData = { e: ciphertextB64, s: saltB64, i: ivB64 };
-                statusLabel.innerText = "✓ 網址解析成功！已完美鎖定加密核心欄位。";
+                statusLabel.innerText = "✓ 網址解析成功！已成功捕獲本地加密核心欄位。";
                 statusLabel.style.color = "green";
             } catch (e) {
-                statusLabel.innerText = "❌ 解析失敗！此網址格式不符合 Link Lock 的加密組態。";
-                statusLabel.style.color = "red";
+                if (statusLabel.style.color !== "orange") {
+                    statusLabel.innerText = "❌ 解析失敗！此網址後方的亂碼不符合本地加密組態。";
+                    statusLabel.style.color = "red";
+                }
                 currentCryptoData = null;
             }
         }
@@ -243,7 +275,6 @@
             setUIState(false);
             document.getElementById("status").innerText = `🛑 已由使用者手動終止。共嘗試了 ${totalTestedCount.toLocaleString()} 組密碼。`;
         }
-
         function startAutoGenerate() {
             const total = updateEstimate();
             if (total === 0) return;
