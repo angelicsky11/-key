@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>袋鼠KEY2.0 - 終極多線程加速版</title>
+    <title>袋鼠KEY2.0 - 破解密碼工具 By-小花花</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; background-color: #f4f6f9; color: #333; }
         .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
@@ -16,17 +16,17 @@
         .order-row { display: flex; align-items: center; margin-bottom: 8px; background: #e9ecef; padding: 8px 12px; border-radius: 4px; font-size: 14px; }
         .order-row span { margin-right: auto; font-weight: bold; }
         .order-row select { padding: 4px; font-size: 14px; border-radius: 4px; border: 1px solid #ccc; }
-        button { background-color: #28a745; color: white; border: none; padding: 12px 24px; cursor: pointer; font-size: 16px; border-radius: 4px; font-weight: bold; width: 100%; transition: background 0.2s; margin-bottom: 10px; }
-        button:hover { background-color: #218838; }
-        button.blue { background-color: #007bff; }
-        button.blue:hover { background-color: #0069d9; }
-        button.orange { background-color: #ffc107; color: #212529; }
-        button.orange:hover { background-color: #e0a800; }
-        button.red { background-color: #dc3545; }
-        button.red:hover { background-color: #bd2130; }
-        button:disabled { background-color: #cccccc; cursor: not-allowed; color: #666; }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        button { flex: 1; color: white; border: none; padding: 12px 24px; cursor: pointer; font-size: 16px; border-radius: 4px; font-weight: bold; transition: background 0.2s; }
+        .btn-green { background-color: #28a745; } .btn-green:hover { background-color: #218838; }
+        .btn-blue { background-color: #007bff; } .btn-blue:hover { background-color: #0069d9; }
+        .btn-orange { background-color: #ffc107; color: #212529; } .btn-orange:hover { background-color: #e0a800; }
+        .btn-red { background-color: #dc3545; } .btn-red:hover { background-color: #bd2130; }
+        .btn-yellow { background-color: #fd7e14; } .btn-yellow:hover { background-color: #e8590c; }
+        button:disabled { background-color: #cccccc !important; cursor: not-allowed; color: #666 !important; }
         .setting-row { display: flex; align-items: center; margin-bottom: 15px; font-size: 15px; }
-        input[type="number"] { width: 60px; padding: 6px; font-size: 16px; margin: 0 8px; text-align: center; border: 1px solid #ced4da; border-radius: 4px; }
+        input[type="number"], select.setting-select { padding: 6px; font-size: 14px; margin: 0 8px; border: 1px solid #ced4da; border-radius: 4px; }
+        input[type="number"] { width: 60px; text-align: center; }
         #status { margin-top: 20px; font-weight: bold; white-space: pre-wrap; font-size: 16px; padding: 12px; background: #e9ecef; border-radius: 6px; }
         .success-box { color: #155724; border: 2px solid #28a745; padding: 15px; margin-top: 15px; background-color: #d4edda; border-radius: 6px; }
         .fail-text { color: #dc3545; }
@@ -35,28 +35,33 @@
     </style>
 </head>
 <body>
-
-    <h2>袋鼠KEY2.0 - 終極多線程加速版</h2>
-    
+    <h2>袋鼠KEY2.0 - 破解密碼工具 By-小花花</h2>
     <div class="card">
         <h3>1. 設定要破解的目標網址</h3>
         <p style="font-size: 14px; color: #666; margin-top: -5px;">請將您要測試的完整網址貼在下方，並點擊確認按鈕進行解析。</p>
         <input type="text" id="targetUrl" placeholder="請在此貼上完整的 Link Lock 加密網址...">
-        <button id="checkUrlBtn" class="blue" onclick="processManualUrl()">確認並解析網址</button>
+        <button id="checkUrlBtn" class="btn-blue" onclick="processManualUrl()">確認並解析網址</button>
         <div id="urlCheckStatus" style="font-size: 15px; font-weight: bold; color: #dc3545; margin-top: 5px;">⚠️ 請先貼上網址並點擊上方「確認並解析網址」按鈕</div>
         <div id="smartWarning" class="warning-box"></div>
     </div>
-
     <div class="card">
-        <h3>2. 模式一：自訂規則自動窮舉（🔥多線程全速加速）</h3>
+        <h3>2. 模式一：自訂規則自動窮舉</h3>
         <div class="setting-row">
-            <label>設定密碼長度：<input type="number" id="pwdLength" value="3" min="1" max="6" oninput="updateEstimate()"></label>
+            <!-- 密碼長度範圍改為 0 ~ 100 位數 -->
+            <label>設定密碼長度：<input type="number" id="pwdLength" value="3" min="0" max="100" oninput="updateEstimate()"></label>
             <span id="comboEstimate" style="color: #666; font-size: 14px; margin-left: 10px;"></span>
         </div>
         <div class="setting-row">
-            <label>啟動硬體執行緒：<input type="number" id="workerCount" value="4" min="1" max="16"> 核心 (建議 4-8)</label>
+            <label>運算模式：
+                <select id="modeSelect" class="setting-select" onchange="toggleModeUI()">
+                    <option value="multi" selected>多線程加速模式 (Web Worker)</option>
+                    <option value="single">常規單線程模式 (傳統相容)</option>
+                </select>
+            </label>
+            <span id="workerSettingGroup">
+                <label>啟動硬體執行緒：<input type="number" id="workerCount" value="4" min="1" max="16"> 核心</label>
+            </span>
         </div>
-
         <p style="margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #495057;">請勾選要測試的密碼組合要素：</p>
         <div class="checkbox-group">
             <label class="checkbox-item"><input type="checkbox" id="chkLower" checked onchange="updateEstimate()"> 英文小寫 (a-z)</label>
@@ -65,23 +70,24 @@
             <label class="checkbox-item"><input type="checkbox" id="chkSpace" onchange="updateEstimate()"> 空白鍵 (Space)</label>
             <label class="checkbox-item"><input type="checkbox" id="chkSymbols" onchange="updateEstimate()"> 標點符號 (!@#$...)</label>
         </div>
-
         <p style="margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #495057;">設定嘗試優先順序：</p>
         <div id="orderSettings">
             <div class="order-row"><span>英文大寫 (A-Z)</span><select id="orderUpper" onchange="updateEstimate()"><option value="1" selected>第 1 順位</option><option value="2">第 2 順位</option></select></div>
             <div class="order-row"><span>英文小寫 (a-z)</span><select id="orderLower" onchange="updateEstimate()"><option value="1">第 1 順位</option><option value="2" selected>第 2 順位</option></select></div>
         </div>
-
-        <button id="autoBtn" onclick="startAutoGenerate()">開始多線程自動暴力嘗試</button>
-        <button id="stopBtn" class="red" onclick="stopAllWorkers()" style="display:none;">停止嘗試</button>
+        <br>
+        <div class="btn-group">
+            <button id="autoBtn" class="btn-green" onclick="startAutoGenerate()">開始自動暴力嘗試</button>
+            <button id="pauseBtn" class="btn-yellow" onclick="pauseCracking()" style="display:none;">暫停嘗試</button>
+            <button id="resumeBtn" class="btn-green" onclick="resumeCracking()" style="display:none;">繼續嘗試</button>
+            <button id="stopBtn" class="btn-red" onclick="stopAllWorkers()" style="display:none;">終止嘗試</button>
+        </div>
     </div>
-
     <div class="card">
         <h3>3. 模式二：自訂密碼清單檔案</h3>
         <textarea id="passwordList" placeholder="請在此輸入或貼上您的密碼清單..."></textarea>
-        <button id="startBtn" class="orange" onclick="startCustomList()">測試上方手打清單</button>
+        <button id="startBtn" class="btn-orange" onclick="startCustomList()">測試上方手打清單</button>
     </div>
-
     <div id="status">準備就緒</div>
     <div id="result"></div>
     <script>
@@ -98,11 +104,12 @@
         let workers = [];
         let totalTestedCount = 0;
         let isCracking = false;
+        let isPaused = false;
+        let currentProgressPointers = [];
 
         const workerCode = `
             self.onmessage = async function(e) {
-                const { start, end, length, pool, cryptoData } = e.data;
-                
+                const { start, end, length, pool, cryptoData, id } = e.data;
                 function generatePasswordByIndex(index, length, pool) {
                     let result = "";
                     let temp = index;
@@ -114,24 +121,19 @@
                     }
                     return result;
                 }
-
                 function base64ToBytes(b64Str) {
                     let normalized = b64Str.replace(/-/g, '+').replace(/_/g, '/');
                     while (normalized.length % 4) { normalized += '='; }
                     return Uint8Array.from(atob(normalized), c => c.charCodeAt(0));
                 }
-
                 let saltBytes = base64ToBytes(cryptoData.s);
                 let ivBytes = base64ToBytes(cryptoData.i);
                 let ciphertextBytes = base64ToBytes(cryptoData.e);
-
-                let batchSize = 10; 
+                let batchSize = 10;
                 let count = 0;
-
                 for (let i = start; i < end; i++) {
                     const pwd = generatePasswordByIndex(i, length, pool);
                     count++;
-
                     try {
                         const encoder = new TextEncoder();
                         const passwordBytes = encoder.encode(pwd);
@@ -141,21 +143,17 @@
                             baseKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
                         );
                         const decryptedBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv: ivBytes, tagLength: 128 }, aesKey, ciphertextBytes);
-                        const resultStr = new TextDecoder().decode(decryptedBytes);
-                        
-                        self.postMessage({ type: 'success', password: pwd, result: resultStr });
+                        self.postMessage({ type: 'success', password: pwd, result: new TextDecoder().decode(decryptedBytes) });
                         return;
-                    } catch (err) { }
-
+                    } catch (err) {}
                     if (count % batchSize === 0) {
-                        self.postMessage({ type: 'progress', count: batchSize, lastPwd: pwd });
+                        self.postMessage({ type: 'progress', count: batchSize, lastPwd: pwd, currentIndex: i, id: id });
                     }
                 }
-                
                 if (count % batchSize !== 0) {
-                    self.postMessage({ type: 'progress', count: count % batchSize, lastPwd: generatePasswordByIndex(end-1, length, pool) });
+                    self.postMessage({ type: 'progress', count: count % batchSize, lastPwd: generatePasswordByIndex(end-1, length, pool), currentIndex: end-1, id: id });
                 }
-                self.postMessage({ type: 'done' });
+                self.postMessage({ type: 'done', id: id });
             };
         `;
         function base64ToBytes(b64Str) {
@@ -166,74 +164,51 @@
             } catch(e) { return null; }
         }
 
+        function toggleModeUI() {
+            const mode = document.getElementById("modeSelect").value;
+            document.getElementById("workerSettingGroup").style.display = (mode === "multi") ? "inline" : "none";
+        }
+
         function processManualUrl() {
             const urlInput = document.getElementById("targetUrl").value.trim();
             const statusLabel = document.getElementById("urlCheckStatus");
             const warnBox = document.getElementById("smartWarning");
-            
-            warnBox.style.display = "none";
-            warnBox.innerHTML = "";
-
+            warnBox.style.display = "none"; warnBox.innerHTML = "";
             if (!urlInput) {
-                statusLabel.innerText = "❌ 請先輸入網址，欄位不能為空！";
-                statusLabel.style.color = "red";
-                currentCryptoData = null;
-                return;
+                statusLabel.innerText = "❌ 請先輸入網址，欄位不能為空！"; statusLabel.style.color = "red";
+                currentCryptoData = null; return;
             }
-
             if (urlInput.includes("://google.com") || urlInput.includes("://live.com") || urlInput.includes("icloud.com")) {
-                statusLabel.innerText = "🛑 智慧系統阻斷：檢測到大型雲端硬碟網址";
-                statusLabel.style.color = "red";
-                warnBox.innerHTML = "<strong>⚠️ 安全警告：</strong>此網址屬於【伺服器端驗證】架構。這類網站有嚴格的連線防禦機制（如輸入錯誤 3 次直接封鎖 IP、跳出圖片驗證碼）。本工具【袋鼠KEY2.0】無法對其進行破解，請勿強制空轉以免浪費您的電腦算力。";
-                warnBox.style.display = "block";
-                currentCryptoData = null;
-                return;
+                statusLabel.innerText = "🛑 智慧系統阻斷：檢測到大型雲端硬碟網址"; statusLabel.style.color = "red";
+                warnBox.innerHTML = "<strong>⚠️ 安全警告：</strong>此網址屬於【伺服器端驗證】架構。這類網站有嚴格的連線防禦機制（如輸入錯誤 3 次直接封鎖 IP）。袋鼠KEY2.0無法對其進行破解。";
+                warnBox.style.display = "block"; currentCryptoData = null; return;
             }
-
             if (urlInput.includes("/login") || urlInput.includes("/signin") || urlInput.includes("/auth")) {
-                statusLabel.innerText = "⚠️ 智慧系統警告：偵測到常規登入頁面";
-                statusLabel.style.color = "orange";
-                warnBox.innerHTML = "<strong>⚠️ 偵測提示：</strong>這似乎是一個常規的會員登入頁面。這類網站的密碼驗證發生在遠端機房，本工具無法直接為其填寫或破解，強制執行將毫無效果。";
+                statusLabel.innerText = "⚠️ 智慧系統警告：偵測到常規登入頁面"; statusLabel.style.color = "orange";
+                warnBox.innerHTML = "<strong>⚠️ 偵測提示：</strong>這似乎是一個常規的會員登入頁面。這類網站的密碼驗證發生在遠端機房，無法進行本地破解。";
                 warnBox.style.display = "block";
             }
-
             if (!urlInput.includes('#')) {
-                statusLabel.innerText = "❌ 解析失敗！網址中缺少關鍵的「#」加密錨點。";
-                statusLabel.style.color = "red";
-                currentCryptoData = null;
-                return;
+                statusLabel.innerText = "❌ 解析失敗！網址中缺少關鍵的「#」加密錨點。"; statusLabel.style.color = "red";
+                currentCryptoData = null; return;
             }
-
             try {
                 let parts = urlInput.split('#');
                 let base64String = parts[1];
-                
-                if (base64String.includes('?')) {
-                    base64String = base64String.split('?')[0];
-                }
-                
+                if (base64String.includes('?')) { base64String = base64String.split('?')[0]; }
                 const rawBytes = base64ToBytes(base64String);
-                const jsonStr = new TextDecoder().decode(rawBytes);
-                const data = JSON.parse(jsonStr);
-
-                let ciphertextB64 = data.e || data;
-                let saltB64 = data.s || data;
-                let ivB64 = data.i || data;
-
+                const data = JSON.parse(new TextDecoder().decode(rawBytes));
+                let ciphertextB64 = data.e || data[1];
+                let saltB64 = data.s || data[2];
+                let ivB64 = data.i || data[3];
                 if (!ciphertextB64 || !saltB64 || !ivB64) { throw new Error(); }
-
                 currentCryptoData = { e: ciphertextB64, s: saltB64, i: ivB64 };
-                statusLabel.innerText = "✓ 網址解析成功！已成功捕獲本地加密核心欄位。";
-                statusLabel.style.color = "green";
+                statusLabel.innerText = "✓ 網址解析成功！已成功捕獲本地加密核心欄位。"; statusLabel.style.color = "green";
             } catch (e) {
-                if (statusLabel.style.color !== "orange") {
-                    statusLabel.innerText = "❌ 解析失敗！此網址後方的亂碼不符合本地加密組態。";
-                    statusLabel.style.color = "red";
-                }
+                if (statusLabel.style.color !== "orange") { statusLabel.innerText = "❌ 解析失敗！此網址後方的亂碼不符合本地加密組態。"; statusLabel.style.color = "red"; }
                 currentCryptoData = null;
             }
         }
-
         function updateEstimate() {
             let orderItems = [
                 { val: CHAR_SETS.upper, active: document.getElementById("chkUpper").checked, order: parseInt(document.getElementById("orderUpper").value) },
@@ -245,9 +220,8 @@
             if (document.getElementById("chkNum").checked) pool += CHAR_SETS.num;
             if (document.getElementById("chkSpace").checked) pool += CHAR_SETS.space;
             if (document.getElementById("chkSymbols").checked) pool += CHAR_SETS.symbols;
-
             activeCharPool = pool;
-            const len = parseInt(document.getElementById("pwdLength").value) || 1;
+            const len = parseInt(document.getElementById("pwdLength").value) || 0;
             const label = document.getElementById("comboEstimate");
             if (pool.length === 0) { label.innerText = "(請至少勾選一種字元要素)"; return 0; }
             const total = Math.pow(pool.length, len);
@@ -255,90 +229,105 @@
             return total;
         }
 
-        function setUIState(disabled) {
-            isCracking = disabled;
-            document.getElementById("autoBtn").style.display = disabled ? "none" : "block";
-            document.getElementById("stopBtn").style.display = disabled ? "block" : "none";
+        function setUIState(state) {
+            isCracking = (state === 'cracking'); isPaused = (state === 'paused');
+            document.getElementById("autoBtn").style.display = (state === 'ready') ? "block" : "none";
+            document.getElementById("pauseBtn").style.display = (state === 'cracking') ? "block" : "none";
+            document.getElementById("resumeBtn").style.display = (state === 'paused') ? "block" : "none";
+            document.getElementById("stopBtn").style.display = (state !== 'ready') ? "block" : "none";
+            const disabled = (state !== 'ready');
             document.getElementById("startBtn").disabled = disabled;
             document.getElementById("passwordList").disabled = disabled;
             document.getElementById("pwdLength").disabled = disabled;
             document.getElementById("targetUrl").disabled = disabled;
             document.getElementById("checkUrlBtn").disabled = disabled;
+            document.getElementById("modeSelect").disabled = disabled;
             document.getElementById("workerCount").disabled = disabled;
             document.querySelectorAll(".checkbox-group input").forEach(cb => cb.disabled = disabled);
             document.querySelectorAll("#orderSettings select").forEach(sel => sel.disabled = disabled);
         }
 
         function stopAllWorkers() {
-            workers.forEach(w => w.terminate());
-            workers = [];
-            setUIState(false);
-            document.getElementById("status").innerText = `🛑 已由使用者手動終止。共嘗試了 ${totalTestedCount.toLocaleString()} 組密碼。`;
+            workers.forEach(w => w.terminate()); workers = []; currentProgressPointers = [];
+            setUIState('ready');
+            document.getElementById("status").innerText = `🛑 已由使用者完全終止。本次任務總計嘗試了 ${totalTestedCount.toLocaleString()} 組密碼。`;
         }
+
+        function pauseCracking() {
+            if (!isCracking) return;
+            workers.forEach(w => w.terminate()); workers = [];
+            setUIState('paused');
+            document.getElementById("status").innerText = `⏸️ 已暫停。目前進度：已嘗試 ${totalTestedCount.toLocaleString()} 組組合。\n您可以點擊「繼續嘗試」從當前位置接續計算。`;
+        }
+
+        function resumeCracking() {
+            if (!isPaused) return; setUIState('cracking');
+            if (document.getElementById("modeSelect").value === "multi") { launchMultiWorkers(true); } else { runSingleThreadLoop(true); }
+        }
+
         function startAutoGenerate() {
-            const total = updateEstimate();
-            if (total === 0) return;
+            if (updateEstimate() === 0) return;
             if (!currentCryptoData) { alert("請先完成第一步的網址確認解析！"); return; }
-
-            setUIState(true);
-            totalTestedCount = 0;
-            document.getElementById("result").innerHTML = "";
-
+            totalTestedCount = 0; currentProgressPointers = []; document.getElementById("result").innerHTML = "";
+            setUIState('cracking');
+            if (document.getElementById("modeSelect").value === "multi") { launchMultiWorkers(false); } else { runSingleThreadLoop(false); }
+        }
+        function launchMultiWorkers(isResuming) {
+            const total = updateEstimate();
             const threadCount = parseInt(document.getElementById("workerCount").value) || 4;
             const rangePerWorker = Math.ceil(total / threadCount);
             let activeWorkers = threadCount;
-
             const blob = new Blob([workerCode], { type: 'application/javascript' });
             const workerUrl = URL.createObjectURL(blob);
-
             for (let i = 0; i < threadCount; i++) {
-                const start = i * rangePerWorker;
-                let end = start + rangePerWorker;
-                if (end > total) end = total;
-                if (start >= total) { activeWorkers = i; break; }
-
-                const worker = new Worker(workerUrl);
-                workers.push(worker);
-
+                let start = i * rangePerWorker; let end = start + rangePerWorker;
+                if (end > total) end = total; if (start >= total) { activeWorkers = i; break; }
+                if (isResuming && currentProgressPointers[i]) { start = currentProgressPointers[i] + 1; } else { currentProgressPointers[i] = start - 1; }
+                if (start >= end) { activeWorkers--; continue; }
+                const worker = new Worker(workerUrl); workers.push(worker);
                 worker.onmessage = function(msg) {
-                    if (!isCracking) return;
-                    const data = msg.data;
-
+                    if (!isCracking) return; const data = msg.data;
                     if (data.type === 'progress') {
-                        totalTestedCount += data.count;
-                        document.getElementById("status").innerText = `🔥 多線程全速加速中... 已嘗試 ${totalTestedCount.toLocaleString()} / ${total.toLocaleString()} 組組合\n當前各執行緒探針: [ ${data.lastPwd} ]`;
+                        totalTestedCount += data.count; currentProgressPointers[data.id] = data.currentIndex;
+                        document.getElementById("status").innerText = `🔥 多線程加速中... 已嘗試 ${totalTestedCount.toLocaleString()} / ${total.toLocaleString()} 組組合\n當前各核心探針: [ ${data.lastPwd} ]`;
                     } else if (data.type === 'success') {
-                        stopAllWorkers();
-                        document.getElementById("status").innerHTML = "<span style='color:green;'>[+] 成功破解密碼！</span>";
-                        document.getElementById("result").innerHTML = `
-                            <div class="success-box">
-                                <strong>正確密碼：</strong> <span style="font-size:18px; background:#fff; padding:2px 8px; border-radius:4px; border:1px solid #ccc;">${data.password}</span><br><br>
-                                <strong>解密後隱藏內容：</strong><br>
-                                <pre>${data.result}</pre>
-                            </div>`;
+                        stopAllWorkers(); document.getElementById("status").innerHTML = "<span style='color:green;'>[+] 成功破解密碼！</span>";
+                        document.getElementById("result").innerHTML = `<div class="success-box"><strong>正確密碼：</strong> <span style="font-size:18px; background:#fff; padding:2px 8px; border-radius:4px; border:1px solid #ccc;">${data.password}</span><br><br><strong>解密後隱藏內容：</strong><br><pre>${data.result}</pre></div>`;
                     } else if (data.type === 'done') {
-                        activeWorkers--;
-                        if (activeWorkers === 0 && isCracking) {
-                            setUIState(false);
-                            document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 嘗試完畢。範圍內的所有組合皆無法解開。</span>";
-                        }
+                        activeWorkers--; if (activeWorkers === 0 && isCracking) { setUIState('ready'); document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 嘗試完畢。範圍內的所有組合皆無法解開。</span>"; }
                     }
                 };
-
-                worker.postMessage({ start, end, length: parseInt(document.getElementById("pwdLength").value), pool: activeCharPool, cryptoData: currentCryptoData });
+                worker.postMessage({ start, end, length: parseInt(document.getElementById("pwdLength").value), pool: activeCharPool, cryptoData: currentCryptoData, id: i });
             }
             URL.revokeObjectURL(workerUrl);
+            if (activeWorkers === 0 && isCracking) { setUIState('ready'); document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 嘗試完畢。範圍內的所有組合皆無法解開。</span>"; }
+        }
+
+        async function runSingleThreadLoop(isResuming) {
+            const total = updateEstimate(); let start = 0;
+            if (isResuming && currentProgressPointers) { start = currentProgressPointers + 1; }
+            let lastUpdate = Date.now();
+            for (let i = start; i < total; i++) {
+                if (!isCracking || isPaused) return; currentProgressPointers = i;
+                const pwd = generatePasswordByIndex(i, parseInt(document.getElementById("pwdLength").value), activeCharPool);
+                if (Date.now() - lastUpdate > 120) {
+                    document.getElementById("status").innerText = `Base 單線程運行中... 已嘗試 ${totalTestedCount.toLocaleString()} / ${total.toLocaleString()} 組組合\n當前密碼樣本: [ ${pwd} ]`;
+                    await new Promise(resolve => setTimeout(resolve, 1)); lastUpdate = Date.now();
+                }
+                totalTestedCount++; const outcome = await tryDecryptSingle(pwd);
+                if (outcome.success) {
+                    stopAllWorkers(); document.getElementById("status").innerHTML = "<span style='color:green;'>[+] 成功破解密碼！</span>";
+                    document.getElementById("result").innerHTML = `<div class="success-box"><strong>正確密碼：</strong> <span style="font-size:18px; background:#fff; padding:2px 8px; border-radius:4px; border:1px solid #ccc;">${pwd}</span><br><br><strong>解密後隱藏內容：</strong><br><pre>${outcome.result}</pre></div>`; return;
+                }
+            }
+            if (isCracking) { setUIState('ready'); document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 嘗試完畢。範圍內的所有組合皆無法解開。</span>"; }
         }
 
         async function tryDecryptSingle(password) {
             try {
-                const encoder = new TextEncoder();
-                const passwordBytes = encoder.encode(password);
+                const encoder = new TextEncoder(); const passwordBytes = encoder.encode(password);
                 const baseKey = await crypto.subtle.importKey("raw", passwordBytes, "PBKDF2", false, ["deriveKey"]);
-                const aesKey = await crypto.subtle.deriveKey(
-                    { name: "PBKDF2", salt: base64ToBytes(currentCryptoData.s), iterations: 100000, hash: "SHA-256" },
-                    baseKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
-                );
+                const aesKey = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: base64ToBytes(currentCryptoData.s), iterations: 100000, hash: "SHA-256" }, baseKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
                 const decryptedBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(currentCryptoData.i), tagLength: 128 }, aesKey, base64ToBytes(currentCryptoData.e));
                 return { success: true, result: new TextDecoder().decode(decryptedBytes) };
             } catch (e) { return { success: false }; }
@@ -348,30 +337,27 @@
             const text = document.getElementById("passwordList").value;
             const passwords = text.split('\n').map(p => p.trim()).filter(p => p.length > 0);
             if (passwords.length === 0) { alert("請先在欄位中輸入密碼！"); return; }
-            setUIState(true);
-            document.getElementById("result").innerHTML = "";
+            setUIState('cracking'); document.getElementById("result").innerHTML = "";
             for (let i = 0; i < passwords.length; i++) {
-                const pwd = passwords[i];
+                if (!isCracking) return; const pwd = passwords[i];
                 document.getElementById("status").innerText = `正在嘗試字典密碼: [ ${pwd} ]`;
                 await new Promise(resolve => setTimeout(resolve, 1));
                 const outcome = await tryDecryptSingle(pwd);
                 if (outcome.success) {
                     document.getElementById("status").innerHTML = "<span style='color:green;'>[+] 成功解開密碼！</span>";
-                    document.getElementById("result").innerHTML = `
-                        <div class="success-box">
-                            <strong>正確密碼：</strong> <span style="font-size:18px; background:#fff; padding:2px 8px; border-radius:4px; border:1px solid #ccc;">${pwd}</span><br><br>
-                            <strong>解密後隱藏內容：</strong><br>
-                            <pre>${outcome.result}</pre>
-                        </div>`;
-                    setUIState(false);
-                    return;
+                    document.getElementById("result").innerHTML = `<div class="success-box"><strong>正確密碼：</strong> <span style="font-size:18px; background:#fff; padding:2px 8px; border-radius:4px; border:1px solid #ccc;">${pwd}</span><br><br><strong>解密後隱藏內容：</strong><br><pre>${outcome.result}</pre></div>`;
+                    setUIState('ready'); return;
                 }
             }
-            document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 字典嘗試完畢。清單內無正確密碼。</span>";
-            setUIState(false);
+            document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 字典嘗試完畢。清單內無正確密碼。</span>"; setUIState('ready');
         }
 
-        updateEstimate();
+        function generatePasswordByIndex(index, length, pool) {
+            let result = ""; let temp = index; const base = pool.length;
+            for (let i = 0; i < length; i++) { let remainder = temp % base; result = pool[remainder] + result; temp = Math.floor(temp / base); }
+            return result;
+        }
+        updateEstimate(); toggleModeUI();
     </script>
 </body>
 </html>
