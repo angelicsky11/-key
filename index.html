@@ -38,7 +38,7 @@
     <h2>袋鼠KEY2.0 - 破解密碼工具 By-小花花</h2>
     <div class="card">
         <h3>1. 設定要破解的目標網址</h3>
-        <p style="font-size: 14px; color: #666; margin-top: -5px;">請將您要測試的完整網址貼在下方，並點擊確認按鈕進行解析。</p>
+        <p style="font-size: 14px; color: #666; margin-top: -5px;">請將您要測試 the 完整網址貼在下方，並點擊確認按鈕進行解析。</p>
         <input type="text" id="targetUrl" placeholder="請在此貼上完整的 Link Lock 加密網址...">
         <button id="checkUrlBtn" class="btn-blue" onclick="processManualUrl()">確認並解析網址</button>
         <div id="urlCheckStatus" style="font-size: 15px; font-weight: bold; color: #dc3545; margin-top: 5px;">⚠️ 請先貼上網址並點擊上方「確認並解析網址」按鈕</div>
@@ -47,7 +47,6 @@
     <div class="card">
         <h3>2. 模式一：自訂規則自動窮舉</h3>
         <div class="setting-row">
-            <!-- 關鍵亮點：升級為可以設定「幾位數到幾位數」的範圍輸入框 -->
             <label>設定密碼長度範圍：從 <input type="number" id="pwdMinLength" value="2" min="1" max="100" oninput="updateEstimate()"> 到 <input type="number" id="pwdMaxLength" value="4" min="1" max="100" oninput="updateEstimate()"> 位數</label>
         </div>
         <div class="setting-row">
@@ -107,8 +106,6 @@
         let totalTestedCount = 0;
         let isCracking = false;
         let isPaused = false;
-        
-        // 範圍控制的核心變數宣告
         let globalTaskRanges = []; 
         let currentProgressPointers = []; 
 
@@ -117,20 +114,16 @@
                 const { start, end, taskRanges, pool, cryptoData, id } = e.data;
                 
                 function getPasswordByGlobalIndex(globalIndex, taskRanges, pool) {
-                    // 核心進位制轉換：依據總進度索引定位出當前密碼應該是幾位數、以及具體字串
                     let targetRange = null;
                     for (let r of taskRanges) {
                         if (globalIndex >= r.globalStart && globalIndex <= r.globalEnd) {
-                            targetRange = r;
-                            break;
+                            targetRange = r; break;
                         }
                     }
                     if (!targetRange) return "";
                     
                     let localIndex = globalIndex - targetRange.globalStart;
-                    let result = "";
-                    let temp = localIndex;
-                    const base = pool.length;
+                    let result = ""; let temp = localIndex; const base = pool.length;
                     for (let i = 0; i < targetRange.length; i++) {
                         let remainder = temp % base;
                         result = pool[remainder] + result;
@@ -138,7 +131,6 @@
                     }
                     return result;
                 }
-
                 function base64ToBytes(b64Str) {
                     let normalized = b64Str.replace(/-/g, '+').replace(/_/g, '/');
                     while (normalized.length % 4) { normalized += '='; }
@@ -148,18 +140,14 @@
                 let saltBytes = base64ToBytes(cryptoData.s);
                 let ivBytes = base64ToBytes(cryptoData.i);
                 let ciphertextBytes = base64ToBytes(cryptoData.e);
-
-                let batchSize = 15;
-                let count = 0;
+                let batchSize = 15; let count = 0;
 
                 for (let i = start; i < end; i++) {
-                    const pwd = getPasswordByGlobalIndex(i, taskRanges, pool);
+                    const pwd = generatePasswordByIndex(i, length, pool);
                     if (!pwd) continue;
                     count++;
-
                     try {
-                        const encoder = new TextEncoder();
-                        const passwordBytes = encoder.encode(pwd);
+                        const encoder = new TextEncoder(); const passwordBytes = encoder.encode(pwd);
                         const baseKey = await crypto.subtle.importKey("raw", passwordBytes, "PBKDF2", false, ["deriveKey"]);
                         const aesKey = await crypto.subtle.deriveKey(
                             { name: "PBKDF2", salt: saltBytes, iterations: 100000, hash: "SHA-256" },
@@ -169,7 +157,6 @@
                         self.postMessage({ type: 'success', password: pwd, result: new TextDecoder().decode(decryptedBytes) });
                         return;
                     } catch (err) {}
-
                     if (count % batchSize === 0) {
                         self.postMessage({ type: 'progress', count: batchSize, lastPwd: pwd, currentIndex: i, id: id });
                     }
@@ -204,12 +191,12 @@
             }
             if (urlInput.includes("://google.com") || urlInput.includes("://live.com") || urlInput.includes("icloud.com")) {
                 statusLabel.innerText = "🛑 智慧系統阻斷：檢測到大型雲端硬碟網址"; statusLabel.style.color = "red";
-                warnBox.innerHTML = "<strong>⚠️ 安全警告：</strong>此網址屬於【伺服器端驗證】架構。這類網站有嚴格的連線防禦機制。袋鼠KEY2.0無法對其進行破解。";
+                warnBox.innerHTML = "<strong>⚠️ 安全警告：</strong>此網址屬於【伺服器端驗證】架構。袋鼠KEY2.0無法對其進行破解。";
                 warnBox.style.display = "block"; currentCryptoData = null; return;
             }
             if (urlInput.includes("/login") || urlInput.includes("/signin") || urlInput.includes("/auth")) {
                 statusLabel.innerText = "⚠️ 智慧系統警告：偵測到常規登入頁面"; statusLabel.style.color = "orange";
-                warnBox.innerHTML = "<strong>⚠️ 偵測提示：</strong>這似乎是一個常規的會員登入頁面。這類網站的密碼驗證發生在遠端機房，無法進行本地破解。";
+                warnBox.innerHTML = "<strong>⚠️ 偵測提示：</strong>這似乎是一個常規的會員登入頁面，無法進行本地破解。";
                 warnBox.style.display = "block";
             }
             if (!urlInput.includes('#')) {
@@ -218,8 +205,9 @@
             }
             try {
                 let parts = urlInput.split('#');
-                let base64String = parts;
-                if (base64String.includes('?')) { base64String = base64String.split('?'); }
+                let base64String = parts[1]; 
+                if (base64String.includes('?')) { base64String = base64String.split('?')[0]; }
+                
                 const rawBytes = base64ToBytes(base64String);
                 const data = JSON.parse(new TextDecoder().decode(rawBytes));
                 let ciphertextB64 = data.e || data;
@@ -248,30 +236,20 @@
 
             let minLen = parseInt(document.getElementById("pwdMinLength").value) || 1;
             let maxLen = parseInt(document.getElementById("pwdMaxLength").value) || 1;
-            
-            // 安全防呆：如果使用者手抖把最小寫得比最大還大，自動對齊
             if (minLen > maxLen) { minLen = maxLen; }
 
             const label = document.getElementById("comboEstimate");
             if (pool.length === 0) { label.innerText = "(請至少勾選一種字元要素)"; return 0; }
 
-            // 自動計算「從幾位數到幾位數」的加總區間範圍
-            let totalCombinations = 0;
-            globalTaskRanges = [];
-            let currentGlobalStart = 0;
-
+            let totalCombinations = 0; globalTaskRanges = []; let currentGlobalStart = 0;
             for (let len = minLen; len <= maxLen; len++) {
                 let countForThisLength = Math.pow(pool.length, len);
                 globalTaskRanges.push({
-                    length: len,
-                    count: countForThisLength,
-                    globalStart: currentGlobalStart,
-                    globalEnd: currentGlobalStart + countForThisLength - 1
+                    length: len, count: countForThisLength,
+                    globalStart: currentGlobalStart, globalEnd: currentGlobalStart + countForThisLength - 1
                 });
-                totalCombinations += countForThisLength;
-                currentGlobalStart += countForThisLength;
+                totalCombinations += countForThisLength; currentGlobalStart += countForThisLength;
             }
-
             label.innerText = `(字元池大小: ${pool.length}，在 [ ${minLen} ~ ${maxLen} ] 位數範圍內，總共 ${totalCombinations.toLocaleString()} 種組合)`;
             return totalCombinations;
         }
@@ -302,8 +280,7 @@
 
         function pauseCracking() {
             if (!isCracking) return;
-            workers.forEach(w => w.terminate()); workers = [];
-            setUIState('paused');
+            workers.forEach(w => w.terminate()); workers = []; setUIState('paused');
             document.getElementById("status").innerText = `⏸️ 已暫停。目前進度：已嘗試 ${totalTestedCount.toLocaleString()} 組組合。\n您可以點擊「繼續嘗試」從當前位置接續計算。`;
         }
 
@@ -320,12 +297,9 @@
             if (document.getElementById("modeSelect").value === "multi") { launchMultiWorkers(false); } else { runSingleThreadLoop(false); }
         }
         function launchMultiWorkers(isResuming) {
-            const total = updateEstimate();
-            const threadCount = parseInt(document.getElementById("workerCount").value) || 4;
-            const rangePerWorker = Math.ceil(total / threadCount);
-            let activeWorkers = threadCount;
-            const blob = new Blob([workerCode], { type: 'application/javascript' });
-            const workerUrl = URL.createObjectURL(blob);
+            const total = updateEstimate(); const threadCount = parseInt(document.getElementById("workerCount").value) || 4;
+            const rangePerWorker = Math.ceil(total / threadCount); let activeWorkers = threadCount;
+            const blob = new Blob([workerCode], { type: 'application/javascript' }); const workerUrl = URL.createObjectURL(blob);
             for (let i = 0; i < threadCount; i++) {
                 let start = i * rangePerWorker; let end = start + rangePerWorker;
                 if (end > total) end = total; if (start >= total) { activeWorkers = i; break; }
@@ -380,7 +354,6 @@
             }
             if (isCracking) { setUIState('ready'); document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 嘗試完畢。範圍內的所有組合皆無法解開。</span>"; }
         }
-
         async function tryDecryptSingle(password) {
             try {
                 const encoder = new TextEncoder(); const passwordBytes = encoder.encode(password);
