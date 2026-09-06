@@ -13,7 +13,6 @@
         .checkbox-group { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 15px 0; background: #f8f9fa; padding: 15px; border-radius: 6px; }
         .checkbox-item { display: flex; align-items: center; font-size: 15px; cursor: pointer; }
         .checkbox-item input { margin-right: 8px; width: 18px; height: 18px; cursor: pointer; }
-        /* 🌟 全新升級：滑鼠拖曳清單專用美化樣式 */
         .drag-list { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
         .drag-item { display: flex; align-items: center; background: #e9ecef; padding: 10px 14px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: grab; user-select: none; border: 1px solid #dee2e6; transition: background 0.2s, transform 0.1s; }
         .drag-item:active { cursor: grabbing; transform: scale(0.98); }
@@ -35,6 +34,12 @@
         .fail-text { color: #dc3545; }
         .warning-box { color: #856404; background-color: #fff3cd; border: 1px solid #ffeeba; padding: 12px; border-radius: 6px; margin-top: 5px; font-size: 14px; display: none; line-height: 1.4; }
         pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 14px; border: 1px solid #e9ecef; }
+        /* 🌟 新增：隱藏折疊進階面板專用樣式 */
+        .toggle-link { color: #007bff; cursor: pointer; text-decoration: underline; font-size: 14px; display: inline-block; margin-bottom: 10px; }
+        .advanced-panel { display: none; background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 15px; }
+        .pos-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .pos-input-item { display: flex; flex-direction: column; align-items: center; font-size: 12px; }
+        .pos-input-item input { width: 35px; text-align: center; padding: 4px; border: 1px solid #ccc; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -48,18 +53,26 @@
         <div id="smartWarning" class="warning-box"></div>
     </div>
     <div class="card">
-        <h3>2. 模式一：自訂規則自動窮舉</h3>
+        <h3>2. 模式一：自訂規則密碼運算</h3>
         <div class="setting-row">
-            <label>設定密碼長度範圍：從 <input type="number" id="pwdMinLength" value="2" min="1" max="100" oninput="updateEstimate()"> 到 <input type="number" id="pwdMaxLength" value="4" min="1" max="100" oninput="updateEstimate()"> 位數</label>
+            <label>設定密碼長度範圍：從 <input type="number" id="pwdMinLength" value="2" min="1" max="100" oninput="buildPositionInputs(); updateEstimate();"> 到 <input type="number" id="pwdMaxLength" value="4" min="1" max="100" oninput="buildPositionInputs(); updateEstimate();"> 位數</label>
         </div>
+
+        <!-- 🌟 新增功能 2：不佔版面的折疊式「指定位置字元鎖定」面板 -->
+        <div class="toggle-link" onclick="toggleAdvancedPanel()">⚙️ 點此開啟/隱藏：指定位置字元鎖定設定</div>
+        <div id="advPanel" class="advanced-panel">
+            <p style="margin:0 0 5px 0; font-size:13px; color:#666;">若已知某些位置的固定字元，可在下方對應格子填入（例如第三個字是 g，就在第 3 格填 g，其餘留空）。系統會自動排除不符的密碼。</p>
+            <div id="positionGrid" class="pos-grid"></div>
+        </div>
+
         <div class="setting-row">
             <span id="comboEstimate" style="color: #666; font-size: 14px;"></span>
         </div>
         <div class="setting-row">
             <label>運算模式：
                 <select id="modeSelect" class="setting-select" onchange="toggleModeUI()">
-                    <option value="multi" selected>多線程加速模式 (Web Worker)</option>
                     <option value="single">常規單線程模式 (傳統相容)</option>
+                    <option value="multi" selected>多線程加速模式 (Web Worker)</option>
                 </select>
             </label>
             <span id="workerSettingGroup">
@@ -74,8 +87,7 @@
             <label class="checkbox-item"><input type="checkbox" id="chkSpace" onchange="updateEstimate()"> 空白鍵 (Space)</label>
             <label class="checkbox-item"><input type="checkbox" id="chkSymbols" onchange="updateEstimate()"> 標點符號 (!@#$...)</label>
         </div>
-        <!-- 🌟 全新升級：改用滑鼠拖曳排序 (最上面最先嘗試) -->
-        <p style="margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #495057;">調整嘗試優先順序（按住滑鼠上下拖曳，最上方最先嘗試）：</p>
+        <p style="margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #495057;">調整嘗試優先順序：</p>
         <div id="dragContainer" class="drag-list">
             <div class="drag-item" draggable="true" data-type="upper"><span class="drag-handle">☰</span>英文大寫 (A-Z)</div>
             <div class="drag-item" draggable="true" data-type="lower"><span class="drag-handle">☰</span>英文小寫 (a-z)</div>
@@ -92,7 +104,8 @@
         </div>
     </div>
     <div class="card">
-        <h3>3. 模式二：自訂密碼清單檔案</h3>
+        <!-- 🌟 新增功能 1：標題註明會自動檢驗大小寫 -->
+        <h3>3. 模式二：自訂密碼清單檔案 <span style="color:#fd7e14; font-size:13px;">(⚠️會自動檢驗大小寫)</span></h3>
         <textarea id="passwordList" placeholder="請在此輸入或貼上您的密碼清單..."></textarea>
         <button id="startBtn" class="btn-orange" onclick="startCustomList()">測試上方手打清單</button>
     </div>
@@ -115,25 +128,38 @@
         let isPaused = false;
         let globalTaskRanges = []; 
         let currentProgressPointers = []; 
+        
+        // 新增功能 3：用於記錄精準時間統計的變數
+        let startTime = null;
 
+        // 🌟 加速關鍵 4：將背景 Worker 解密演算法進行底層重構與流水線優化，減少迴圈物件建立
         const workerCode = `
             self.onmessage = async function(e) {
-                const { start, end, taskRanges, pool, cryptoData, id } = e.data;
+                const { start, end, taskRanges, pool, cryptoData, id, fixedPos } = e.data;
                 
-                function getPasswordByGlobalIndex(globalIndex, taskRanges, pool) {
+                function getPasswordByGlobalIndex(globalIndex, taskRanges, pool, fixedPos) {
                     let targetRange = null;
-                    for (let r of taskRanges) {
+                    for (let i = 0; i < taskRanges.length; i++) {
+                        let r = taskRanges[i];
                         if (globalIndex >= r.globalStart && globalIndex <= r.globalEnd) {
                             targetRange = r; break;
                         }
                     }
-                    if (!targetRange) return "";
+                    if (!targetRange) return null;
                     
                     let localIndex = globalIndex - targetRange.globalStart;
                     let result = ""; let temp = localIndex; const base = pool.length;
-                    for (let i = 0; i < targetRange.length; i++) {
+                    const len = targetRange.length;
+
+                    for (let i = 0; i < len; i++) {
                         let remainder = temp % base;
-                        result = pool[remainder] + result;
+                        let char = pool[remainder];
+                        
+                        // 🌟 功能 2 核心過濾：在 Worker 背景直接進行位數檢查，符合條件才建立字串，不合就拋棄，速度最快
+                        if (fixedPos[i] !== undefined && fixedPos[i] !== char) {
+                            return null; 
+                        }
+                        result = char + result;
                         temp = Math.floor(temp / base);
                     }
                     return result;
@@ -147,11 +173,12 @@
                 let saltBytes = base64ToBytes(cryptoData.s);
                 let ivBytes = base64ToBytes(cryptoData.i);
                 let ciphertextBytes = base64ToBytes(cryptoData.e);
-                let batchSize = 15; let count = 0;
+                let batchSize = 30; // 🌟 加速關鍵 4：提高回報間隔，減少 Worker 與主畫面通訊頻率，算力全開
+                let count = 0;
 
                 for (let i = start; i < end; i++) {
-                    const pwd = getPasswordByGlobalIndex(i, taskRanges, pool);
-                    if (!pwd) continue;
+                    const pwd = getPasswordByGlobalIndex(i, taskRanges, pool, fixedPos);
+                    if (pwd === null) continue; // 遭到指定字元篩選排除，直接跳過不運算，秒速橫掃
                     count++;
                     try {
                         const encoder = new TextEncoder(); const passwordBytes = encoder.encode(pwd);
@@ -169,7 +196,7 @@
                     }
                 }
                 if (count % batchSize !== 0) {
-                    self.postMessage({ type: 'progress', count: count % batchSize, lastPwd: getPasswordByGlobalIndex(end-1, taskRanges, pool), currentIndex: end-1, id: id });
+                    self.postMessage({ type: 'progress', count: count % batchSize, lastPwd: pwd, currentIndex: end-1, id: id });
                 }
                 self.postMessage({ type: 'done', id: id });
             };
@@ -185,6 +212,11 @@
         function toggleModeUI() {
             const mode = document.getElementById("modeSelect").value;
             document.getElementById("workerSettingGroup").style.display = (mode === "multi") ? "inline" : "none";
+        }
+
+        function toggleAdvancedPanel() {
+            const panel = document.getElementById("advPanel");
+            panel.style.display = (panel.style.display === "block") ? "none" : "block";
         }
 
         function processManualUrl() {
@@ -228,11 +260,22 @@
                 currentCryptoData = null;
             }
         }
+
+        // 🌟 功能 2 輔助：動態組裝指定長度位置的格子 UI
+        function buildPositionInputs() {
+            const maxLen = parseInt(document.getElementById("pwdMaxLength").value) || 1;
+            const container = document.getElementById("positionGrid");
+            container.innerHTML = "";
+            for (let i = 1; i <= maxLen; i++) {
+                const div = document.createElement("div");
+                div.className = "pos-input-item";
+                div.innerHTML = `<span>第${i}字</span><input type="text" maxlength="1" class="pos-val" data-pos="${i-1}" oninput="updateEstimate()">`;
+                container.appendChild(div);
+            }
+        }
         function updateEstimate() {
-            // 🌟 核心升級：直接去抓取網頁上被拖曳移動後的新排序
             const dragItems = document.querySelectorAll(".drag-item");
             let pool = "";
-
             dragItems.forEach(item => {
                 const type = item.getAttribute("data-type");
                 if (type === "lower" && document.getElementById("chkLower").checked) pool += CHAR_SETS.lower;
@@ -241,7 +284,6 @@
                 if (type === "space" && document.getElementById("chkSpace").checked) pool += CHAR_SETS.space;
                 if (type === "symbols" && document.getElementById("chkSymbols").checked) pool += CHAR_SETS.symbols;
             });
-
             activeCharPool = pool;
 
             let minLen = parseInt(document.getElementById("pwdMinLength").value) || 1;
@@ -263,6 +305,18 @@
             label.innerText = `(字元池大小: ${pool.length}，在 [ ${minLen} ~ ${maxLen} ] 位數範圍內，總共 ${totalCombinations.toLocaleString()} 種組合)`;
             return totalCombinations;
         }
+
+        // 讀取當前使用者在格子裡輸入的固定字元陣列
+        function getFixedPositions() {
+            const inputs = document.querySelectorAll(".pos-val");
+            let fixed = {};
+            inputs.forEach(inp => {
+                const val = inp.value;
+                const pos = parseInt(inp.getAttribute("data-pos"));
+                if (val) { fixed[pos] = val; }
+            });
+            return fixed;
+        }
         function setUIState(state) {
             isCracking = (state === 'cracking'); isPaused = (state === 'paused');
             document.getElementById("autoBtn").style.display = (state === 'ready') ? "block" : "none";
@@ -279,15 +333,14 @@
             document.getElementById("modeSelect").disabled = disabled;
             document.getElementById("workerCount").disabled = disabled;
             document.querySelectorAll(".checkbox-group input").forEach(cb => cb.disabled = disabled);
-            
-            // 暫停時一併鎖定拖曳功能，防範執行中順序錯亂
+            document.querySelectorAll(".pos-val").forEach(inp => inp.disabled = disabled);
             document.querySelectorAll(".drag-item").forEach(item => item.setAttribute("draggable", state === 'ready' ? "true" : "false"));
         }
 
         function stopAllWorkers() {
             workers.forEach(w => w.terminate()); workers = []; currentProgressPointers = [];
             setUIState('ready');
-            document.getElementById("status").innerText = `🛑 已由使用者完全終止。本次任務總計嘗試了 ${totalTestedCount.toLocaleString()} 組密碼。`;
+            document.getElementById("status").innerText = `🛑 已由使用者完全終止。`;
         }
 
         function pauseCracking() {
@@ -301,17 +354,23 @@
             if (document.getElementById("modeSelect").value === "multi") { launchMultiWorkers(true); } else { runSingleThreadLoop(true); }
         }
 
+        // 🌟 功能 3 升級：開始解密時紀錄並顯示精準當前時間
         function startAutoGenerate() {
             if (updateEstimate() === 0) return;
             if (!currentCryptoData) { alert("請先完成第一步的網址確認解析！"); return; }
             totalTestedCount = 0; currentProgressPointers = []; document.getElementById("result").innerHTML = "";
+            
+            startTime = Date.now(); // 紀錄開始毫秒數
             setUIState('cracking');
+            
             if (document.getElementById("modeSelect").value === "multi") { launchMultiWorkers(false); } else { runSingleThreadLoop(false); }
         }
         function launchMultiWorkers(isResuming) {
             const total = updateEstimate(); const threadCount = parseInt(document.getElementById("workerCount").value) || 4;
             const rangePerWorker = Math.ceil(total / threadCount); let activeWorkers = threadCount;
             const blob = new Blob([workerCode], { type: 'application/javascript' }); const workerUrl = URL.createObjectURL(blob);
+            const fixedPosData = getFixedPositions(); // 取得鎖定字元
+
             for (let i = 0; i < threadCount; i++) {
                 let start = i * rangePerWorker; let end = start + rangePerWorker;
                 if (end > total) end = total; if (start >= total) { activeWorkers = i; break; }
@@ -322,23 +381,29 @@
                     if (!isCracking) return; const data = msg.data;
                     if (data.type === 'progress') {
                         totalTestedCount += data.count; currentProgressPointers[data.id] = data.currentIndex;
-                        document.getElementById("status").innerText = `🔥 多線程範圍加速中... 已嘗試 ${totalTestedCount.toLocaleString()} / ${total.toLocaleString()} 組組合\n當前各核心探針: [ ${data.lastPwd} ]`;
+                        
+                        // 🌟 功能 3 升級：即時計算並動態更新運行秒數
+                        let elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                        document.getElementById("status").innerText = `🔥 多線程加速中... (已運行 ${elapsed} 秒)\n已嘗試 ${totalTestedCount.toLocaleString()} / ${total.toLocaleString()} 組組合\n當前各核心探針: [ ${data.lastPwd} ]`;
                     } else if (data.type === 'success') {
-                        stopAllWorkers(); document.getElementById("status").innerHTML = "<span style='color:green;'>[+] 成功破解密碼！</span>";
+                        // 🌟 功能 3 升級：成功破解時，精確統計出總運算耗時
+                        let totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+                        stopAllWorkers(); 
+                        document.getElementById("status").innerHTML = `<span style='color:green;'>[+] 成功破解密碼！總計耗時 ${totalTime} 秒</span>`;
                         document.getElementById("result").innerHTML = `<div class="success-box"><strong>正確密碼：</strong> <span style="font-size:18px; background:#fff; padding:2px 8px; border-radius:4px; border:1px solid #ccc;">${data.password}</span><br><br><strong>解密後隱藏內容：</strong><br><pre>${data.result}</pre></div>`;
                     } else if (data.type === 'done') {
                         activeWorkers--; if (activeWorkers === 0 && isCracking) { setUIState('ready'); document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 嘗試完畢。範圍內的所有組合皆無法解開。</span>"; }
                     }
                 };
-                worker.postMessage({ start, end, taskRanges: globalTaskRanges, pool: activeCharPool, cryptoData: currentCryptoData, id: i });
+                worker.postMessage({ start, end, taskRanges: globalTaskRanges, pool: activeCharPool, cryptoData: currentCryptoData, id: i, fixedPos: fixedPosData });
             }
             URL.revokeObjectURL(workerUrl);
             if (activeWorkers === 0 && isCracking) { setUIState('ready'); document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 嘗試完畢。範圍內的所有組合皆無法解開。</span>"; }
         }
         function getPasswordByGlobalIndexSingle(globalIndex, taskRanges, pool) {
             let targetRange = null;
-            for (let r of taskRanges) {
-                if (globalIndex >= r.globalStart && globalIndex <= r.globalEnd) { targetRange = r; break; }
+            for (let i = 0; i < taskRanges.length; i++) {
+                let r = taskRanges[i]; if (globalIndex >= r.globalStart && globalIndex <= r.globalEnd) { targetRange = r; break; }
             }
             if (!targetRange) return "";
             let localIndex = globalIndex - targetRange.globalStart;
@@ -351,16 +416,29 @@
             const total = updateEstimate(); let start = 0;
             if (isResuming && currentProgressPointers) { start = currentProgressPointers + 1; }
             let lastUpdate = Date.now();
+            const fixedPosData = getFixedPositions();
+
             for (let i = start; i < total; i++) {
                 if (!isCracking || isPaused) return; currentProgressPointers = i;
                 const pwd = getPasswordByGlobalIndexSingle(i, globalTaskRanges, activeCharPool);
+                
+                // 單線程模式同樣套用字元鎖定檢查
+                let skip = false;
+                for (let pos in fixedPosData) {
+                    if (pwd[pos] !== fixedPosData[pos]) { skip = true; break; }
+                }
+                if (skip) continue;
+
                 if (Date.now() - lastUpdate > 120) {
-                    document.getElementById("status").innerText = `🐌 常規單線程範圍運行中... 已嘗試 ${totalTestedCount.toLocaleString()} / ${total.toLocaleString()} 組組合\n當前密碼樣本: [ ${pwd} ]`;
+                    let elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                    document.getElementById("status").innerText = `🐌 單線程運行中... (已運行 ${elapsed} 秒)\n已嘗試 ${totalTestedCount.toLocaleString()} / ${total.toLocaleString()} 組組合\n當前密碼樣本: [ ${pwd} ]`;
                     await new Promise(resolve => setTimeout(resolve, 1)); lastUpdate = Date.now();
                 }
                 totalTestedCount++; const outcome = await tryDecryptSingle(pwd);
                 if (outcome.success) {
-                    stopAllWorkers(); document.getElementById("status").innerHTML = "<span style='color:green;'>[+] 成功破解密碼！</span>";
+                    let totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+                    stopAllWorkers(); 
+                    document.getElementById("status").innerHTML = `<span style='color:green;'>[+] 成功破解密碼！總計耗時 ${totalTime} 秒</span>`;
                     document.getElementById("result").innerHTML = `<div class="success-box"><strong>正確密碼：</strong> <span style="font-size:18px; background:#fff; padding:2px 8px; border-radius:4px; border:1px solid #ccc;">${pwd}</span><br><br><strong>解密後隱藏內容：</strong><br><pre>${outcome.result}</pre></div>`; return;
                 }
             }
@@ -376,65 +454,63 @@
                 return { success: true, result: new TextDecoder().decode(decryptedBytes) };
             } catch (e) { return { success: false }; }
         }
+        // 🌟 功能 1 升級：自動衍生並遞迴生成一個英文字串的所有大小寫組合清單
+        function generateCaseVariants(str) {
+            let results = [];
+            function permute(arr, memo, i) {
+                if (i === arr.length) { results.push(memo); return; }
+                let char = arr[i];
+                if (char.toLowerCase() !== char.toUpperCase()) {
+                    permute(arr, memo + char.toLowerCase(), i + 1);
+                    permute(arr, memo + char.toUpperCase(), i + 1);
+                } else {
+                    permute(arr, memo + char, i + 1);
+                }
+            }
+            permute(str.split(''), "", 0);
+            return [...new Set(results)]; // 剔除可能重複的衍生
+        }
+
         async function startCustomList() {
             const text = document.getElementById("passwordList").value;
-            const passwords = text.split('\n').map(p => p.trim()).filter(p => p.length > 0);
-            if (passwords.length === 0) { alert("請先在欄位中輸入密碼！"); return; }
+            const initialPasswords = text.split('\n').map(p => p.trim()).filter(p => p.length > 0);
+            if (initialPasswords.length === 0) { alert("請先在欄位中輸入密碼！"); return; }
+            
+            // 🌟 功能 1：全自動將清單中的密碼拿去進行大小寫組合全面衍生擴充
+            let finalPasswords = [];
+            initialPasswords.forEach(p => {
+                finalPasswords = finalPasswords.concat(generateCaseVariants(p));
+            });
+
             setUIState('cracking'); document.getElementById("result").innerHTML = "";
-            for (let i = 0; i < passwords.length; i++) {
-                if (!isCracking) return; const pwd = passwords[i];
-                document.getElementById("status").innerText = `正在嘗試字典密碼: [ ${pwd} ]`;
+            startTime = Date.now();
+
+            for (let i = 0; i < finalPasswords.length; i++) {
+                if (!isCracking) return; const pwd = finalPasswords[i];
+                let elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                document.getElementById("status").innerText = `正在嘗試字典密碼(大小寫自動衍生中): [ ${pwd} ] (已耗時 ${elapsed} 秒)`;
                 await new Promise(resolve => setTimeout(resolve, 1));
+                
                 const outcome = await tryDecryptSingle(pwd);
                 if (outcome.success) {
-                    document.getElementById("status").innerHTML = "<span style='color:green;'>[+] 成功解開密碼！</span>";
+                    let totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+                    document.getElementById("status").innerHTML = "<span style='color:green;'>[+] 成功解開密碼！總計耗時 " + totalTime + " 秒</span>";
                     document.getElementById("result").innerHTML = `<div class="success-box"><strong>正確密碼：</strong> <span style="font-size:18px; background:#fff; padding:2px 8px; border-radius:4px; border:1px solid #ccc;">${pwd}</span><br><br><strong>解密後隱藏內容：</strong><br><pre>${outcome.result}</pre></div>`;
                     setUIState('ready'); return;
                 }
             }
-            document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 字典嘗試完畢。清單內無正確密碼。</span>"; setUIState('ready');
+            document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 字典(含全大小寫變體)嘗試完畢。清單內無正確密碼。</span>"; setUIState('ready');
         }
 
-        // 🌟 滑鼠拖曳排序事件核心監聽器
+        // 滑鼠拖曳排序事件核心監聽器
         const container = document.getElementById("dragContainer");
         let draggingItem = null;
+        container.addEventListener("dragstart", (e) => { if (isCracking || isPaused) return; draggingItem = e.target; e.target.classList.add("dragging"); });
+        container.addEventListener("dragend", (e) => { e.target.classList.remove("dragging"); draggingItem = null; updateEstimate(); });
+        container.addEventListener("dragover", (e) => { e.preventDefault(); const afterElement = getDragAfterElement(container, e.clientY); if (afterElement == null) { container.appendChild(draggingItem); } else { container.insertBefore(draggingItem, afterElement); } });
+        function getDragAfterElement(container, y) { const draggableElements = [...container.querySelectorAll(".drag-item:not(.dragging)")]; return draggableElements.reduce((closest, child) => { const box = child.getBoundingClientRect(); const offset = y - box.top - box.height / 2; if (offset < 0 && offset > closest.offset) { return { offset: offset, element: child }; } else { return closest; } }, { offset: Number.NEGATIVE_INFINITY }).element; }
 
-        container.addEventListener("dragstart", (e) => {
-            if (isCracking || isPaused) return; // 防範運行中拖曳
-            draggingItem = e.target;
-            e.target.classList.add("dragging");
-        });
-
-        container.addEventListener("dragend", (e) => {
-            e.target.classList.remove("dragging");
-            draggingItem = null;
-            updateEstimate(); // 排序完成後，立即重新計算密碼組合順序
-        });
-
-        container.addEventListener("dragover", (e) => {
-            e.preventDefault();
-            const afterElement = getDragAfterElement(container, e.clientY);
-            if (afterElement == null) {
-                container.appendChild(draggingItem);
-            } else {
-                container.insertBefore(draggingItem, afterElement);
-            }
-        });
-
-        function getDragAfterElement(container, y) {
-            const draggableElements = [...container.querySelectorAll(".drag-item:not(.dragging)")];
-            return draggableElements.reduce((closest, child) => {
-                const box = child.getBoundingClientRect();
-                const offset = y - box.top - box.height / 2;
-                if (offset < 0 && offset > closest.offset) {
-                    return { offset: offset, element: child };
-                } else {
-                    return closest;
-                }
-            }, { offset: Number.NEGATIVE_INFINITY }).element;
-        }
-
-        updateEstimate(); toggleModeUI();
+        buildPositionInputs(); updateEstimate(); toggleModeUI();
     </script>
 </body>
 </html>
