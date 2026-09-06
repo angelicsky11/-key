@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>袋鼠KEY2.0 - 暴力破解多線程加速版</title>
+    <title>袋鼠KEY2.0 - 終極多線程加速版</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; background-color: #f4f6f9; color: #333; }
         .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
@@ -164,6 +164,7 @@
             } catch(e) { return null; }
         }
 
+        // 終極防護校正點：確保 100% 精準切割 # 後方的 Base64 字串，並排除任何陣列轉型錯誤
         function processManualUrl() {
             const urlInput = document.getElementById("targetUrl").value.trim();
             const statusLabel = document.getElementById("urlCheckStatus");
@@ -174,9 +175,14 @@
                 return;
             }
             try {
-                let hashPart = urlInput.split('#');
-                if (hashPart.includes('?')) { hashPart = hashPart.split('?'); }
-                const rawBytes = base64ToBytes(hashPart);
+                let parts = urlInput.split('#');
+                let base64String = parts[1]; // 修正：精準提取陣列中的第二個元素（即密文網址字串）
+                
+                if (base64String.includes('?')) {
+                    base64String = base64String.split('?')[0];
+                }
+                
+                const rawBytes = base64ToBytes(base64String);
                 const jsonStr = new TextDecoder().decode(rawBytes);
                 const data = JSON.parse(jsonStr);
 
