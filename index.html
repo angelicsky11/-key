@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>袋鼠KEY2.0 - 終極修復版</title>
+    <title>袋鼠KEY2.0 - 暴力破解多線程加速版</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; background-color: #f4f6f9; color: #333; }
         .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
@@ -22,6 +22,8 @@
         button.blue:hover { background-color: #0069d9; }
         button.orange { background-color: #ffc107; color: #212529; }
         button.orange:hover { background-color: #e0a800; }
+        button.red { background-color: #dc3545; }
+        button.red:hover { background-color: #bd2130; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; color: #666; }
         .setting-row { display: flex; align-items: center; margin-bottom: 15px; font-size: 15px; }
         input[type="number"] { width: 60px; padding: 6px; font-size: 16px; margin: 0 8px; text-align: center; border: 1px solid #ced4da; border-radius: 4px; }
@@ -32,7 +34,9 @@
     </style>
 </head>
 <body>
-    <h2>袋鼠KEY2.0 - 終極修復版</h2>
+
+    <h2>袋鼠KEY2.0 - 終極多線程加速版</h2>
+    
     <div class="card">
         <h3>1. 設定要破解的目標網址</h3>
         <p style="font-size: 14px; color: #666; margin-top: -5px;">請將您要測試的完整網址貼在下方，並點擊確認按鈕進行解析。</p>
@@ -40,12 +44,17 @@
         <button id="checkUrlBtn" class="blue" onclick="processManualUrl()">確認並解析網址</button>
         <div id="urlCheckStatus" style="font-size: 15px; font-weight: bold; color: #dc3545; margin-top: 5px;">⚠️ 請先貼上網址並點擊上方「確認並解析網址」按鈕</div>
     </div>
+
     <div class="card">
-        <h3>2. 模式一：自訂規則自動窮舉</h3>
+        <h3>2. 模式一：自訂規則自動窮舉（🔥多線程全速加速）</h3>
         <div class="setting-row">
             <label>設定密碼長度：<input type="number" id="pwdLength" value="3" min="1" max="6" oninput="updateEstimate()"></label>
             <span id="comboEstimate" style="color: #666; font-size: 14px; margin-left: 10px;"></span>
         </div>
+        <div class="setting-row">
+            <label>啟動硬體執行緒：<input type="number" id="workerCount" value="4" min="1" max="16"> 核心 (建議 4-8)</label>
+        </div>
+
         <p style="margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #495057;">請勾選要測試的密碼組合要素：</p>
         <div class="checkbox-group">
             <label class="checkbox-item"><input type="checkbox" id="chkLower" checked onchange="updateEstimate()"> 英文小寫 (a-z)</label>
@@ -54,18 +63,23 @@
             <label class="checkbox-item"><input type="checkbox" id="chkSpace" onchange="updateEstimate()"> 空白鍵 (Space)</label>
             <label class="checkbox-item"><input type="checkbox" id="chkSymbols" onchange="updateEstimate()"> 標點符號 (!@#$...)</label>
         </div>
+
         <p style="margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #495057;">設定嘗試優先順序：</p>
         <div id="orderSettings">
             <div class="order-row"><span>英文大寫 (A-Z)</span><select id="orderUpper" onchange="updateEstimate()"><option value="1" selected>第 1 順位</option><option value="2">第 2 順位</option></select></div>
             <div class="order-row"><span>英文小寫 (a-z)</span><select id="orderLower" onchange="updateEstimate()"><option value="1">第 1 順位</option><option value="2" selected>第 2 順位</option></select></div>
         </div>
-        <button id="autoBtn" onclick="startAutoGenerate()">開始自動生成並嘗試</button>
+
+        <button id="autoBtn" onclick="startAutoGenerate()">開始多線程自動暴力嘗試</button>
+        <button id="stopBtn" class="red" onclick="stopAllWorkers()" style="display:none;">停止嘗試</button>
     </div>
+
     <div class="card">
         <h3>3. 模式二：自訂密碼清單檔案</h3>
         <textarea id="passwordList" placeholder="請在此輸入或貼上您的密碼清單..."></textarea>
         <button id="startBtn" class="orange" onclick="startCustomList()">測試上方手打清單</button>
     </div>
+
     <div id="status">準備就緒</div>
     <div id="result"></div>
     <script>
@@ -76,9 +90,72 @@
             space: " ",
             symbols: "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"
         };
+
         let currentCryptoData = null;
         let activeCharPool = "";
+        let workers = [];
+        let totalTestedCount = 0;
+        let isCracking = false;
 
+        const workerCode = `
+            self.onmessage = async function(e) {
+                const { start, end, length, pool, cryptoData } = e.data;
+                
+                function generatePasswordByIndex(index, length, pool) {
+                    let result = "";
+                    let temp = index;
+                    const base = pool.length;
+                    for (let i = 0; i < length; i++) {
+                        let remainder = temp % base;
+                        result = pool[remainder] + result;
+                        temp = Math.floor(temp / base);
+                    }
+                    return result;
+                }
+
+                function base64ToBytes(b64Str) {
+                    let normalized = b64Str.replace(/-/g, '+').replace(/_/g, '/');
+                    while (normalized.length % 4) { normalized += '='; }
+                    return Uint8Array.from(atob(normalized), c => c.charCodeAt(0));
+                }
+
+                let saltBytes = base64ToBytes(cryptoData.s);
+                let ivBytes = base64ToBytes(cryptoData.i);
+                let ciphertextBytes = base64ToBytes(cryptoData.e);
+
+                let batchSize = 10; 
+                let count = 0;
+
+                for (let i = start; i < end; i++) {
+                    const pwd = generatePasswordByIndex(i, length, pool);
+                    count++;
+
+                    try {
+                        const encoder = new TextEncoder();
+                        const passwordBytes = encoder.encode(pwd);
+                        const baseKey = await crypto.subtle.importKey("raw", passwordBytes, "PBKDF2", false, ["deriveKey"]);
+                        const aesKey = await crypto.subtle.deriveKey(
+                            { name: "PBKDF2", salt: saltBytes, iterations: 100000, hash: "SHA-256" },
+                            baseKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
+                        );
+                        const decryptedBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv: ivBytes, tagLength: 128 }, aesKey, ciphertextBytes);
+                        const resultStr = new TextDecoder().decode(decryptedBytes);
+                        
+                        self.postMessage({ type: 'success', password: pwd, result: resultStr });
+                        return;
+                    } catch (err) { }
+
+                    if (count % batchSize === 0) {
+                        self.postMessage({ type: 'progress', count: batchSize, lastPwd: pwd });
+                    }
+                }
+                
+                if (count % batchSize !== 0) {
+                    self.postMessage({ type: 'progress', count: count % batchSize, lastPwd: generatePasswordByIndex(end-1, length, pool) });
+                }
+                self.postMessage({ type: 'done' });
+            };
+        `;
         function base64ToBytes(b64Str) {
             try {
                 let normalized = b64Str.replace(/-/g, '+').replace(/_/g, '/');
@@ -97,23 +174,19 @@
                 return;
             }
             try {
-                let hashPart = urlInput.split('#')[1];
-                if (hashPart.includes('?')) { hashPart = hashPart.split('?')[0]; }
+                let hashPart = urlInput.split('#');
+                if (hashPart.includes('?')) { hashPart = hashPart.split('?'); }
                 const rawBytes = base64ToBytes(hashPart);
                 const jsonStr = new TextDecoder().decode(rawBytes);
                 const data = JSON.parse(jsonStr);
 
-                let ciphertextB64 = data.e || data[1];
-                let saltB64 = data.s || data[2];
-                let ivB64 = data.i || data[3];
+                let ciphertextB64 = data.e || data;
+                let saltB64 = data.s || data;
+                let ivB64 = data.i || data;
 
                 if (!ciphertextB64 || !saltB64 || !ivB64) { throw new Error(); }
 
-                currentCryptoData = {
-                    ciphertext: base64ToBytes(ciphertextB64),
-                    salt: base64ToBytes(saltB64),
-                    iv: base64ToBytes(ivB64)
-                };
+                currentCryptoData = { e: ciphertextB64, s: saltB64, i: ivB64 };
                 statusLabel.innerText = "✓ 網址解析成功！已完美鎖定加密核心欄位。";
                 statusLabel.style.color = "green";
             } catch (e) {
@@ -144,55 +217,107 @@
             return total;
         }
 
-        async function tryDecrypt(password) {
-            try {
-                const encoder = new TextEncoder();
-                const passwordBytes = encoder.encode(password);
-                const baseKey = await crypto.subtle.importKey("raw", passwordBytes, "PBKDF2", false, ["deriveKey"]);
-                const aesKey = await crypto.subtle.deriveKey(
-                    { name: "PBKDF2", salt: currentCryptoData.salt, iterations: 100000, hash: "SHA-256" },
-                    baseKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
-                );
-                const decryptedBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv: currentCryptoData.iv, tagLength: 128 }, aesKey, currentCryptoData.ciphertext);
-                return { success: true, result: new TextDecoder().decode(decryptedBytes) };
-            } catch (e) { return { success: false }; }
-        }
-
         function setUIState(disabled) {
-            document.getElementById("autoBtn").disabled = disabled;
+            isCracking = disabled;
+            document.getElementById("autoBtn").style.display = disabled ? "none" : "block";
+            document.getElementById("stopBtn").style.display = disabled ? "block" : "none";
             document.getElementById("startBtn").disabled = disabled;
             document.getElementById("passwordList").disabled = disabled;
             document.getElementById("pwdLength").disabled = disabled;
             document.getElementById("targetUrl").disabled = disabled;
             document.getElementById("checkUrlBtn").disabled = disabled;
+            document.getElementById("workerCount").disabled = disabled;
             document.querySelectorAll(".checkbox-group input").forEach(cb => cb.disabled = disabled);
+            document.querySelectorAll("#orderSettings select").forEach(sel => sel.disabled = disabled);
         }
 
-        function generatePasswordByIndex(index, length, pool) {
-            let result = "";
-            let temp = index;
-            const base = pool.length;
-            for (let i = 0; i < length; i++) {
-                let remainder = temp % base;
-                result = pool[remainder] + result;
-                temp = Math.floor(temp / base);
-            }
-            return result;
+        function stopAllWorkers() {
+            workers.forEach(w => w.terminate());
+            workers = [];
+            setUIState(false);
+            document.getElementById("status").innerText = `🛑 已由使用者手動終止。共嘗試了 ${totalTestedCount.toLocaleString()} 組密碼。`;
         }
 
-        async function runTestingLoop(getPasswordFn, totalCount) {
+        function startAutoGenerate() {
+            const total = updateEstimate();
+            if (total === 0) return;
             if (!currentCryptoData) { alert("請先完成第一步的網址確認解析！"); return; }
+
+            setUIState(true);
+            totalTestedCount = 0;
+            document.getElementById("result").innerHTML = "";
+
+            const threadCount = parseInt(document.getElementById("workerCount").value) || 4;
+            const rangePerWorker = Math.ceil(total / threadCount);
+            let activeWorkers = threadCount;
+
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            const workerUrl = URL.createObjectURL(blob);
+
+            for (let i = 0; i < threadCount; i++) {
+                const start = i * rangePerWorker;
+                let end = start + rangePerWorker;
+                if (end > total) end = total;
+                if (start >= total) { activeWorkers = i; break; }
+
+                const worker = new Worker(workerUrl);
+                workers.push(worker);
+
+                worker.onmessage = function(msg) {
+                    if (!isCracking) return;
+                    const data = msg.data;
+
+                    if (data.type === 'progress') {
+                        totalTestedCount += data.count;
+                        document.getElementById("status").innerText = `🔥 多線程全速加速中... 已嘗試 ${totalTestedCount.toLocaleString()} / ${total.toLocaleString()} 組組合\n當前各執行緒探針: [ ${data.lastPwd} ]`;
+                    } else if (data.type === 'success') {
+                        stopAllWorkers();
+                        document.getElementById("status").innerHTML = "<span style='color:green;'>[+] 成功破解密碼！</span>";
+                        document.getElementById("result").innerHTML = `
+                            <div class="success-box">
+                                <strong>正確密碼：</strong> <span style="font-size:18px; background:#fff; padding:2px 8px; border-radius:4px; border:1px solid #ccc;">${data.password}</span><br><br>
+                                <strong>解密後隱藏內容：</strong><br>
+                                <pre>${data.result}</pre>
+                            </div>`;
+                    } else if (data.type === 'done') {
+                        activeWorkers--;
+                        if (activeWorkers === 0 && isCracking) {
+                            setUIState(false);
+                            document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 嘗試完畢。範圍內的所有組合皆無法解開。</span>";
+                        }
+                    }
+                };
+
+                worker.postMessage({ start, end, length: parseInt(document.getElementById("pwdLength").value), pool: activeCharPool, cryptoData: currentCryptoData });
+            }
+            URL.revokeObjectURL(workerUrl);
+        }
+
+        async function tryDecryptSingle(password) {
+            try {
+                const encoder = new TextEncoder();
+                const passwordBytes = encoder.encode(password);
+                const baseKey = await crypto.subtle.importKey("raw", passwordBytes, "PBKDF2", false, ["deriveKey"]);
+                const aesKey = await crypto.subtle.deriveKey(
+                    { name: "PBKDF2", salt: base64ToBytes(currentCryptoData.s), iterations: 100000, hash: "SHA-256" },
+                    baseKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
+                );
+                const decryptedBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(currentCryptoData.i), tagLength: 128 }, aesKey, base64ToBytes(currentCryptoData.e));
+                return { success: true, result: new TextDecoder().decode(decryptedBytes) };
+            } catch (e) { return { success: false }; }
+        }
+
+        async function startCustomList() {
+            const text = document.getElementById("passwordList").value;
+            const passwords = text.split('\n').map(p => p.trim()).filter(p => p.length > 0);
+            if (passwords.length === 0) { alert("請先在欄位中輸入密碼！"); return; }
             setUIState(true);
             document.getElementById("result").innerHTML = "";
-            let lastUpdate = Date.now();
-            for (let i = 0; i < totalCount; i++) {
-                const pwd = getPasswordFn(i);
-                if (Date.now() - lastUpdate > 100) {
-                    document.getElementById("status").innerText = `正在自動嘗試第 (${i + 1}/${totalCount}) 個密碼: [ ${pwd} ]`;
-                    await new Promise(resolve => setTimeout(resolve, 1));
-                    lastUpdate = Date.now();
-                }
-                const outcome = await tryDecrypt(pwd);
+            for (let i = 0; i < passwords.length; i++) {
+                const pwd = passwords[i];
+                document.getElementById("status").innerText = `正在嘗試字典密碼: [ ${pwd} ]`;
+                await new Promise(resolve => setTimeout(resolve, 1));
+                const outcome = await tryDecryptSingle(pwd);
                 if (outcome.success) {
                     document.getElementById("status").innerHTML = "<span style='color:green;'>[+] 成功解開密碼！</span>";
                     document.getElementById("result").innerHTML = `
@@ -205,23 +330,10 @@
                     return;
                 }
             }
-            document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 嘗試完畢。清單或範圍內的所有組合皆無法解開。</span>";
+            document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 字典嘗試完畢。清單內無正確密碼。</span>";
             setUIState(false);
         }
 
-        function startAutoGenerate() {
-            const total = updateEstimate();
-            if (total === 0) return;
-            const len = parseInt(document.getElementById("pwdLength").value) || 1;
-            runTestingLoop((index) => generatePasswordByIndex(index, len, activeCharPool), total);
-        }
-
-        function startCustomList() {
-            const text = document.getElementById("passwordList").value;
-            const passwords = text.split('\n').map(p => p.trim()).filter(p => p.length > 0);
-            if (passwords.length === 0) { alert("請先在欄位中輸入密碼！"); return; }
-            runTestingLoop((index) => passwords[index], passwords.length);
-        }
         updateEstimate();
     </script>
 </body>
