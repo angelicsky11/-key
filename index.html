@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>破解密碼袋鼠KEY 1.0</title>
+    <title>袋鼠KEY2.0 - 終極修復版</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 700px; margin: 30px auto; padding: 20px; line-height: 1.6; background-color: #f4f6f9; color: #333; }
         .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; }
@@ -32,7 +32,7 @@
     </style>
 </head>
 <body>
-    <h2>Link Lock 萬用密碼自動驗證工具</h2>
+    <h2>袋鼠KEY2.0 - 終極修復版</h2>
     <div class="card">
         <h3>1. 設定要破解的目標網址</h3>
         <p style="font-size: 14px; color: #666; margin-top: -5px;">請將您要測試的完整網址貼在下方，並點擊確認按鈕進行解析。</p>
@@ -43,7 +43,7 @@
     <div class="card">
         <h3>2. 模式一：自訂規則自動窮舉</h3>
         <div class="setting-row">
-            <label>設定密碼長度：<input type="number" id="pwdLength" value="2" min="1" max="6" oninput="updateEstimate()"></label>
+            <label>設定密碼長度：<input type="number" id="pwdLength" value="3" min="1" max="6" oninput="updateEstimate()"></label>
             <span id="comboEstimate" style="color: #666; font-size: 14px; margin-left: 10px;"></span>
         </div>
         <p style="margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #495057;">請勾選要測試的密碼組合要素：</p>
@@ -54,20 +54,16 @@
             <label class="checkbox-item"><input type="checkbox" id="chkSpace" onchange="updateEstimate()"> 空白鍵 (Space)</label>
             <label class="checkbox-item"><input type="checkbox" id="chkSymbols" onchange="updateEstimate()"> 標點符號 (!@#$...)</label>
         </div>
-        <p style="margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #495057;">設定嘗試優先順序（第 1 順位最先嘗試）：</p>
+        <p style="margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #495057;">設定嘗試優先順序：</p>
         <div id="orderSettings">
-            <div class="order-row"><span>英文小寫 (a-z)</span><select id="orderLower" onchange="updateEstimate()"><option value="1" selected>第 1 順位</option><option value="2">第 2 順位</option><option value="3">第 3 順位</option><option value="4">第 4 順位</option><option value="5">第 5 順位</option></select></div>
-            <div class="order-row"><span>英文大寫 (A-Z)</span><select id="orderUpper" onchange="updateEstimate()"><option value="1">第 1 順位</option><option value="2" selected>第 2 順位</option><option value="3">第 3 順位</option><option value="4">第 4 順位</option><option value="5">第 5 順位</option></select></div>
-            <div class="order-row"><span>數字 (0-9)</span><select id="orderNum" onchange="updateEstimate()"><option value="1">第 1 順位</option><option value="2">第 2 順位</option><option value="3" selected>第 3 順位</option><option value="4">第 4 順位</option><option value="5">第 5 順位</option></select></div>
-            <div class="order-row"><span>空白鍵 (Space)</span><select id="orderSpace" onchange="updateEstimate()"><option value="1">第 1 順位</option><option value="2">第 2 順位</option><option value="3">第 3 順位</option><option value="4" selected>第 4 順位</option><option value="5">第 5 順位</option></select></div>
-            <div class="order-row"><span>標點符號 (!@#$...)</span><select id="orderSymbols" onchange="updateEstimate()"><option value="1">第 1 順位</option><option value="2">第 2 順位</option><option value="3">第 3 順位</option><option value="4">第 4 順位</option><option value="5" selected>第 5 順位</option></select></div>
+            <div class="order-row"><span>英文大寫 (A-Z)</span><select id="orderUpper" onchange="updateEstimate()"><option value="1" selected>第 1 順位</option><option value="2">第 2 順位</option></select></div>
+            <div class="order-row"><span>英文小寫 (a-z)</span><select id="orderLower" onchange="updateEstimate()"><option value="1">第 1 順位</option><option value="2" selected>第 2 順位</option></select></div>
         </div>
-        <br>
         <button id="autoBtn" onclick="startAutoGenerate()">開始自動生成並嘗試</button>
     </div>
     <div class="card">
         <h3>3. 模式二：自訂密碼清單檔案</h3>
-        <textarea id="passwordList" placeholder="hello&#10;Secret&#10;MyPassword123"></textarea>
+        <textarea id="passwordList" placeholder="hello&#10;Secret&#10;CuP"></textarea>
         <button id="startBtn" class="orange" onclick="startCustomList()">測試上方手打清單</button>
     </div>
     <div id="status">準備就緒</div>
@@ -83,81 +79,69 @@
         let currentCryptoData = null;
         let activeCharPool = "";
 
+        function base64ToBytes(b64Str) {
+            try {
+                let normalized = b64Str.replace(/-/g, '+').replace(/_/g, '/');
+                while (normalized.length % 4) { normalized += '='; }
+                return Uint8Array.from(atob(normalized), c => c.charCodeAt(0));
+            } catch(e) { return null; }
+        }
+
         function processManualUrl() {
             const urlInput = document.getElementById("targetUrl").value.trim();
             const statusLabel = document.getElementById("urlCheckStatus");
-            if (!urlInput) {
-                statusLabel.innerText = "❌ 請先輸入網址，欄位不能為空！";
+            if (!urlInput || !urlInput.includes('#')) {
+                statusLabel.innerText = "❌ 請輸入包含「#」後方加密參數的完整網址！";
                 statusLabel.style.color = "red";
                 currentCryptoData = null;
                 return;
             }
-            const parsed = parseUrlData(urlInput);
-            if (parsed) {
-                statusLabel.innerText = "✓ 網址驗證成功！已鎖定加密目標，您可以開始進行密碼嘗試了。";
+            try {
+                let hashPart = urlInput.split('#')[1];
+                if (hashPart.includes('?')) { hashPart = hashPart.split('?')[0]; }
+                const rawBytes = base64ToBytes(hashPart);
+                const jsonStr = new TextDecoder().decode(rawBytes);
+                const data = JSON.parse(jsonStr);
+
+                let ciphertextB64 = data.e || data[1];
+                let saltB64 = data.s || data[2];
+                let ivB64 = data.i || data[3];
+
+                if (!ciphertextB64 || !saltB64 || !ivB64) { throw new Error(); }
+
+                currentCryptoData = {
+                    ciphertext: base64ToBytes(ciphertextB64),
+                    salt: base64ToBytes(saltB64),
+                    iv: base64ToBytes(ivB64)
+                };
+                statusLabel.innerText = "✓ 網址解析成功！已完美鎖定加密核心欄位。";
                 statusLabel.style.color = "green";
-                currentCryptoData = parsed;
-            } else {
-                statusLabel.innerText = "❌ 解析失敗！請確認貼上的是否為包含「#eyJ...」的完整 Link Lock 連結。";
+            } catch (e) {
+                statusLabel.innerText = "❌ 解析失敗！此網址格式不符合 Link Lock 的加密組態。";
                 statusLabel.style.color = "red";
                 currentCryptoData = null;
             }
         }
 
         function updateEstimate() {
-            // 讀取各組件的權重順序設定
             let orderItems = [
-                { type: 'lower', val: CHAR_SETS.lower, active: document.getElementById("chkLower").checked, order: parseInt(document.getElementById("orderLower").value) },
-                { type: 'upper', val: CHAR_SETS.upper, active: document.getElementById("chkUpper").checked, order: parseInt(document.getElementById("orderUpper").value) },
-                { type: 'num', val: CHAR_SETS.num, active: document.getElementById("chkNum").checked, order: parseInt(document.getElementById("orderNum").value) },
-                { type: 'space', val: CHAR_SETS.space, active: document.getElementById("chkSpace").checked, order: parseInt(document.getElementById("orderSpace").value) },
-                { type: 'symbols', val: CHAR_SETS.symbols, active: document.getElementById("chkSymbols").checked, order: parseInt(document.getElementById("orderSymbols").value) }
+                { val: CHAR_SETS.upper, active: document.getElementById("chkUpper").checked, order: parseInt(document.getElementById("orderUpper").value) },
+                { val: CHAR_SETS.lower, active: document.getElementById("chkLower").checked, order: parseInt(document.getElementById("orderLower").value) }
             ];
-
-            // 依據使用者選擇的順位(由小到大)排序
             orderItems.sort((a, b) => a.order - b.order);
-
-            // 依序重新組裝字元池
             let pool = "";
-            orderItems.forEach(item => {
-                if (item.active) { pool += item.val; }
-            });
+            orderItems.forEach(item => { if (item.active) pool += item.val; });
+            if (document.getElementById("chkNum").checked) pool += CHAR_SETS.num;
+            if (document.getElementById("chkSpace").checked) pool += CHAR_SETS.space;
+            if (document.getElementById("chkSymbols").checked) pool += CHAR_SETS.symbols;
 
             activeCharPool = pool;
-
             const len = parseInt(document.getElementById("pwdLength").value) || 1;
             const label = document.getElementById("comboEstimate");
-
-            if (pool.length === 0) {
-                label.innerText = "(請至少勾選一種字元要素)";
-                return 0;
-            }
-
+            if (pool.length === 0) { label.innerText = "(請至少勾選一種字元要素)"; return 0; }
             const total = Math.pow(pool.length, len);
             label.innerText = `(字元池大小: ${pool.length}，總共 ${total.toLocaleString()} 種組合)`;
             return total;
-        }
-
-        function base64ToBytes(b64Str) {
-            try { return Uint8Array.from(atob(b64Str), c => c.charCodeAt(0)); } catch(e) { return null; }
-        }
-
-        function parseUrlData(url) {
-            try {
-                if (!url.includes('#')) return null;
-                const parts = url.split('#');
-                if (parts.length < 2) return null;
-                let base64String = parts[1];
-                if (base64String.includes('?')) { base64String = base64String.split('?')[0]; }
-                let normalizedB64 = base64String.replace(/-/g, '+').replace(/_/g, '/');
-                while (normalizedB64.length % 4) { normalizedB64 += '='; }
-                const rawBytes = base64ToBytes(normalizedB64);
-                if (!rawBytes) return null;
-                const jsonStr = new TextDecoder().decode(rawBytes);
-                const data = JSON.parse(jsonStr);
-                if (!data.e || !data.s || !data.i) return null;
-                return { ciphertext: base64ToBytes(data.e), salt: base64ToBytes(data.s), iv: base64ToBytes(data.i) };
-            } catch (e) { return null; }
         }
 
         async function tryDecrypt(password) {
@@ -170,7 +154,7 @@
                     baseKey, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
                 );
                 const decryptedBytes = await crypto.subtle.decrypt({ name: "AES-GCM", iv: currentCryptoData.iv, tagLength: 128 }, aesKey, currentCryptoData.ciphertext);
-                return { success: true, result: JSON.parse(new TextDecoder().decode(decryptedBytes)) };
+                return { success: true, result: new TextDecoder().decode(decryptedBytes) };
             } catch (e) { return { success: false }; }
         }
 
@@ -181,10 +165,7 @@
             document.getElementById("pwdLength").disabled = disabled;
             document.getElementById("targetUrl").disabled = disabled;
             document.getElementById("checkUrlBtn").disabled = disabled;
-            const checkboxes = document.querySelectorAll(".checkbox-group input");
-            checkboxes.forEach(cb => cb.disabled = disabled);
-            const selects = document.querySelectorAll("#orderSettings select");
-            selects.forEach(sel => sel.disabled = disabled);
+            document.querySelectorAll(".checkbox-group input").forEach(cb => cb.disabled = disabled);
         }
 
         function generatePasswordByIndex(index, length, pool) {
@@ -200,32 +181,31 @@
         }
 
         async function runTestingLoop(getPasswordFn, totalCount) {
-            if (!currentCryptoData) { alert("請先在第一步輸入有效的 Link Lock 網址，並點擊藍色按鈕解析！"); return; }
+            if (!currentCryptoData) { alert("請先完成第一步的網址確認解析！"); return; }
             setUIState(true);
             document.getElementById("result").innerHTML = "";
             let lastUpdate = Date.now();
             for (let i = 0; i < totalCount; i++) {
                 const pwd = getPasswordFn(i);
-                if (Date.now() - lastUpdate > 120) {
+                if (Date.now() - lastUpdate > 100) {
                     document.getElementById("status").innerText = `正在自動嘗試第 (${i + 1}/${totalCount}) 個密碼: [ ${pwd} ]`;
                     await new Promise(resolve => setTimeout(resolve, 1));
                     lastUpdate = Date.now();
                 }
                 const outcome = await tryDecrypt(pwd);
                 if (outcome.success) {
-                    document.getElementById("status").innerHTML = "<span style='color:green;'>[+] 成功找到正確密碼！</span>";
+                    document.getElementById("status").innerHTML = "<span style='color:green;'>[+] 成功解開密碼！</span>";
                     document.getElementById("result").innerHTML = `
                         <div class="success-box">
                             <strong>正確密碼：</strong> <span style="font-size:18px; background:#fff; padding:2px 8px; border-radius:4px; border:1px solid #ccc;">${pwd}</span><br><br>
-                            <strong>解密成功網址資訊：</strong><br>
-                            <pre>${JSON.stringify(outcome.result, null, 4)}</pre>
-                        </div>
-                    `;
+                            <strong>解密後隱藏內容：</strong><br>
+                            <pre>${outcome.result}</pre>
+                        </div>`;
                     setUIState(false);
                     return;
                 }
             }
-            document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 嘗試完畢。所選範圍內的所有組合皆無法解開此網址。</span>";
+            document.getElementById("status").innerHTML = "<span class='fail-text'>[-] 嘗試完畢。清單或範圍內的所有組合皆無法解開。</span>";
             setUIState(false);
         }
 
@@ -239,7 +219,7 @@
         function startCustomList() {
             const text = document.getElementById("passwordList").value;
             const passwords = text.split('\n').map(p => p.trim()).filter(p => p.length > 0);
-            if (passwords.length === 0) { alert("請先在下方欄位中輸入自訂密碼清單！"); return; }
+            if (passwords.length === 0) { alert("請先在欄位中輸入密碼！"); return; }
             runTestingLoop((index) => passwords[index], passwords.length);
         }
         updateEstimate();
